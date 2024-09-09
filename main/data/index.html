@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1">
+		<title>index</title>
+	</head>
+	<body>
+		<style>:root{color:#fff;background-color:#222;font-family:monospace;}input{width:100%;}</style>
+		<fieldset id="fields">
+			<h1>setogiwa_ctrl</h1>
+			<div class="servo">
+				<h2>servo</h2>
+				<input type="range"><br>
+				<input type="range"><br>
+				<input type="range"><br>
+				<input type="range"><br>
+				<input type="range">
+			</div>
+			<div class="robomas">
+				<h2>robomas</h2>
+				<input type="range"><br>
+				<input type="range">
+			</div>
+			<div class="belt">
+				<h2>belt</h2>
+				<input type="range"><br>
+				<input type="range">
+				<input type="range">
+			</div>
+		</fieldset>
+		<script>
+			let
+				ws,
+				servo=[...document.querySelectorAll('.servo input[type=range]')],
+				robomas=[...document.querySelectorAll('.robomas input[type=range]')],
+				belt=[...document.querySelectorAll('.belt input[type=range]')],
+				send=_=>_,
+				main=_=>ws=Object.assign(new WebSocket(`ws://${location.hostname}/ws`),{
+					binaryType:'arraybuffer',
+					onopen:e=>console.log(e,send=_=>ws.send(new Float32Array([...servo,...robomas,...belt].map(x=>x.value))),fields.disabled=false),
+					onclose:e=>console.log(e,send=_=>_,fields.disabled=true,setTimeout(main,2000))
+				});
+
+			fields.disabled=true;
+			fields.oninput=_=>send();
+			servo.forEach(x=>Object.assign(x,{min:0,max:1,step:.05,value:.5}));
+			robomas.forEach(x=>Object.assign(x,{min:-1,max:1,step:.05,value:0}));
+			belt.forEach(x=>Object.assign(x,{min:-1,max:1,step:.05,value:0}));
+			main();
+		</script>
+	</body>
+</html>
