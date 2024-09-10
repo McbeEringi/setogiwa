@@ -29,6 +29,7 @@
 				<input type="range">
 			</div>
 		</fieldset>
+		<pre id="log"></pre>
 		<script>
 			let
 				ws,
@@ -39,7 +40,8 @@
 				main=_=>ws=Object.assign(new WebSocket(`ws://${location.hostname}/ws`),{
 					binaryType:'arraybuffer',
 					onopen:e=>console.log(e,send=_=>ws.send(new Float32Array([...servo,...robomas,...belt].map(x=>x.value))),fields.disabled=false),
-					onclose:e=>console.log(e,send=_=>_,fields.disabled=true,setTimeout(main,2000))
+					onclose:e=>console.log(e,send=_=>_,fields.disabled=true,setTimeout(main,2000)),
+					onmessage:e=>log.textContent=e.data
 				});
 
 			fields.disabled=true;
