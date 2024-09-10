@@ -21,6 +21,7 @@ void setup(){
 	for(uint8_t i=0;i<3;i++){
 		pinMode(pinA[i],OUTPUT);pinMode(pinB[i],OUTPUT);
 	}
+	TCA0.SPLIT.CTRLA=0b1011;
 }
 
 void loop(){
