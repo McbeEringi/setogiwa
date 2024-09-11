@@ -16,7 +16,8 @@ AsyncWebSocket ws("/ws");
 float
 	srv[5]={0},
 	robomas[2]={0},
-	belt[3]={0};
+	belt[3]={0},
+	fan[6]={0};
 
 uint16_t btn=0,st_raw=0xffff;
 float st_x=0,st_y=0;
@@ -36,7 +37,8 @@ void servo(uint8_t ch,float x){ledcWrite(ch,(x*2000+500)*1.6384);}// tick/us=(hz
 void flush(){
 	for(uint8_t i=0;i<5;i++)servo(i,srv[i]);
 	RM_X.set_location(robomas[0]*65536*4);RM_Y.set_location(robomas[1]*65536*4);
-	for(uint8_t i=0;i<3;i++)Serial.write((i<<6)|((uint8_t)((belt[i]*.5+.5)*63+1)));
+	for(uint8_t i=0;i<3;i++)Serial.write(     (i<<5)|((uint8_t)((belt[i]*.5+.5)*31+1)));
+	for(uint8_t i=0;i<6;i++)Serial.write(0x80|(i<<4)|((uint8_t)(fan[i]*15.)));
 }
 void st_calc(){
 	if(st_raw==0xffff)return;
@@ -56,7 +58,8 @@ void onWS(AsyncWebSocket *ws,AsyncWebSocketClient *client,AwsEventType type,void
 		if(info->final&&info->index==0&&info->len==len){
 			for(uint8_t i=0;i<5;i++)srv[i]=*(float*)(data+(i<<2));
 			//for(uint8_t i=0;i<2;i++)robomas[i]=*(float*)(data+((i+5)<<2));
-			for(uint8_t i=0;i<3;i++)belt[i]=*(float*)(data+((i+5+2)<<2));
+			for(uint8_t i=0;i<3;i++)belt[i]=*(float*)(data+((i+5)<<2));
+			for(uint8_t i=0;i<6;i++)fan[i]=*(float*)(data+((i+5+3)<<2));
 			flush();
 		}
 	}

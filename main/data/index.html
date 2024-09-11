@@ -17,15 +17,19 @@
 				<input type="range"><br>
 				<input type="range">
 			</div>
-			<div class="robomas">
-				<h2>robomas</h2>
-				<input type="range"><br>
-				<input type="range">
-			</div>
 			<div class="belt">
 				<h2>belt</h2>
 				<input type="range"><br>
 				<input type="range">
+				<input type="range">
+			</div>
+			<div class="fan">
+				<h2>fan</h2>
+				<input type="range"><br>
+				<input type="range"><br>
+				<input type="range"><br>
+				<input type="range"><br>
+				<input type="range"><br>
 				<input type="range">
 			</div>
 		</fieldset>
@@ -34,12 +38,12 @@
 			let
 				ws,
 				servo=[...document.querySelectorAll('.servo input[type=range]')],
-				robomas=[...document.querySelectorAll('.robomas input[type=range]')],
+				fan=[...document.querySelectorAll('.fan input[type=range]')],
 				belt=[...document.querySelectorAll('.belt input[type=range]')],
 				send=_=>_,
 				main=_=>ws=Object.assign(new WebSocket(`ws://${location.hostname}/ws`),{
 					binaryType:'arraybuffer',
-					onopen:e=>console.log(e,send=_=>ws.send(new Float32Array([...servo,...robomas,...belt].map(x=>x.value))),fields.disabled=false),
+					onopen:e=>console.log(e,send=_=>ws.send(new Float32Array([...servo,...belt,...fan].map(x=>x.value))),fields.disabled=false),
 					onclose:e=>console.log(e,send=_=>_,fields.disabled=true,setTimeout(main,2000)),
 					onmessage:e=>log.textContent=e.data
 				});
@@ -47,8 +51,9 @@
 			fields.disabled=true;
 			fields.oninput=_=>send();
 			servo.forEach(x=>Object.assign(x,{min:0,max:1,step:.05,value:.5}));
-			robomas.forEach(x=>Object.assign(x,{min:-1,max:1,step:.05,value:0}));
+			// robomas.forEach(x=>Object.assign(x,{min:-1,max:1,step:.05,value:0}));
 			belt.forEach(x=>Object.assign(x,{min:-1,max:1,step:.05,value:0}));
+			fan.forEach(x=>Object.assign(x,{min:0,max:1,step:.05,value:0}));
 			main();
 		</script>
 	</body>
