@@ -16,7 +16,7 @@ int8_t t[4]={0},r[4]={0};
 
 void setup(){
 	Serial.swap(1);
-	Serial.begin(9600);
+	Serial.begin(9600,SERIAL_8E1);
 	pinMode(BTN,INPUT_PULLUP);
 	for(uint8_t i=0;i<3;i++){
 		pinMode(pinA[i],OUTPUT);pinMode(pinB[i],OUTPUT);

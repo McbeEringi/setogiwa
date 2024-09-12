@@ -8,7 +8,7 @@ uint8_t t[8]={0},r[8]={0};
 
 void setup(){
 	Serial.swap(1);
-	Serial.begin(9600);
+	Serial.begin(9600,SERIAL_8E1);
 	pinMode(BTN,INPUT_PULLUP);
 	for(uint8_t i=0;i<6;i++)pinMode(pin[i],OUTPUT);
 	TCA0.SPLIT.CTRLA=0b1011;

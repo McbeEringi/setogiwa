@@ -19,7 +19,8 @@ float
 	belt[3]={0},
 	fan[6]={0};
 
-uint16_t btn=0,st_raw=0xffff;
+uint8_t st_raw=0x33;
+uint16_t btn=0;
 float st_x=0,st_y=0;
 uint32_t t=0;
 
@@ -40,16 +41,14 @@ void flush(){
 	for(uint8_t i=0;i<3;i++)Serial.write(     (i<<5)|((uint8_t)((belt[i]*.5+.5)*31+1)));
 	for(uint8_t i=0;i<6;i++)Serial.write(0x80|(i<<4)|((uint8_t)(fan[i]*15.)));
 }
-void st_calc(){
-	if(st_raw==0xffff)return;
-	float
-		r0=mix(-1,1,(st_raw&0xff)/63.),
-		r1=mix(-1,1,(st_raw>>8)/63.);
-	st_x=(r0-r1)*.5;
-	st_y=-(r0+r1)*.5;
-
-	st_x=sign(st_x)*saturate(mix(-.3,1.05,abs(st_x)));
-	st_y=sign(st_y)*saturate(mix(-.3,1.05,abs(st_y)));
+void wslog(){
+	ws.printfAll(
+		"{\n\tbtn:0x%03x,st:[%f,%f],raw:0x%02x,\n\tservo:[%f,%f,%f,%f,%f],\n\trobomas:[%f,%f],belt:[%f,%f,%f],\n\tfan:[%f,%f,%f,%f,%f,%f]\n}",
+		btn,st_x,st_y,st_raw,
+		srv[0],srv[1],srv[2],srv[3],srv[4],
+		robomas[0],robomas[1],belt[0],belt[1],belt[2],
+		fan[0],fan[1],fan[2],fan[3],fan[4],fan[5]
+	);
 }
 
 void onWS(AsyncWebSocket *ws,AsyncWebSocketClient *client,AwsEventType type,void *arg,uint8_t *data,size_t len){
@@ -60,13 +59,13 @@ void onWS(AsyncWebSocket *ws,AsyncWebSocketClient *client,AwsEventType type,void
 			//for(uint8_t i=0;i<2;i++)robomas[i]=*(float*)(data+((i+5)<<2));
 			for(uint8_t i=0;i<3;i++)belt[i]=*(float*)(data+((i+5)<<2));
 			for(uint8_t i=0;i<6;i++)fan[i]=*(float*)(data+((i+5+3)<<2));
-			flush();
+			flush();wslog();
 		}
 	}
 }
 
 void setup(){
-	Serial.begin(9600);
+	Serial.begin(9600,SERIAL_8E1);
 	can_init(CAN_TX,CAN_RX);
 	RM_X.setup();//RM_X.reset_location();
 	RM_Y.setup();//RM_Y.reset_location();
@@ -92,19 +91,28 @@ void loop(){
 	if(Serial.available()>0){
 		do{
 			uint8_t x=Serial.read();
-			switch(x>>6){
-				case 0:{btn=(btn&0xffc0)|(x&0x3f);break;}
-				case 1:{btn=(btn&0xf03f)|((x&0x3f)<<6);break;}
-				case 2:{st_raw=(st_raw&0xff00)|(x&0x3f);st_calc();break;}
-				case 3:{st_raw=(st_raw&0x00ff)|((x&0x3f)<<8);st_calc();break;}
+			if(x&0x40){//nunchaku
+
+			}else{//ctl
+				if(x&0x20){//st
+					if(x&0x10)st_raw=(st_raw&0xf)|((x&0xf)<<4);
+					else st_raw=(st_raw&0xf0)|(x&0xf);
+					int8_t
+						r0=(st_raw&0xf)-3,
+						r1=(st_raw>>4)-3;
+					st_x=(r0-r1)/6.;
+					st_y=(r0+r1)/6.;
+				}else{//btn
+					uint8_t p=x&0xf;
+					btn=(btn&(~(1<<p)))|(((x>>4)&1)<<p);
+				}
 			}
 		}while(Serial.available()>0);
-		ws.printfAll("{btn:0x%03x,st:[%f,%f],raw:0x%04x}",btn,st_x,st_y,st_raw);
-
-		robomas[1]+=st_x*-.05;
-		robomas[0]+=st_y*-.01;
-		flush();
+		wslog();
 	}
+	robomas[1]+=st_x*-.05;
+	robomas[0]+=st_y*-.01;
+	flush();
 }
 
 
