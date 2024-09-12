@@ -24,7 +24,8 @@ void setup(){
 	for(uint8_t i=0;i<2;i++)pinMode(stick[i],INPUT);
 }
 
-void loop(){// 0b xx(st?)(st?i:pushed)[st?st_data:i]
+void loop(){// 0b x0(st?)(st?i:pushed)[st?st_data:i]
+	while(Serial.available()>0)Serial.write(Serial.read());
 	btn=0;
 	for(uint8_t i=0,p=0;i<3;i++){
 		digitalWrite(bus[i],LOW);

@@ -19,7 +19,7 @@ float
 	belt[3]={0},
 	fan[6]={0};
 
-uint8_t st_raw=0x33;
+uint8_t st_raw=0x33,nunchuk;
 uint16_t btn=0;
 float st_x=0,st_y=0;
 uint32_t t=0;
@@ -43,8 +43,8 @@ void flush(){
 }
 void wslog(){
 	ws.printfAll(
-		"{\n\tbtn:0x%03x,st:[%f,%f],raw:0x%02x,\n\tservo:[%f,%f,%f,%f,%f],\n\trobomas:[%f,%f],belt:[%f,%f,%f],\n\tfan:[%f,%f,%f,%f,%f,%f]\n}",
-		btn,st_x,st_y,st_raw,
+		"{\n\tbtn:0x%03x,st:[%f,%f],raw:0x%02x,nun:%02x,\n\tservo:[%f,%f,%f,%f,%f],\n\trobomas:[%f,%f],belt:[%f,%f,%f],\n\tfan:[%f,%f,%f,%f,%f,%f]\n}",
+		btn,st_x,st_y,st_raw,nunchuk,
 		srv[0],srv[1],srv[2],srv[3],srv[4],
 		robomas[0],robomas[1],belt[0],belt[1],belt[2],
 		fan[0],fan[1],fan[2],fan[3],fan[4],fan[5]
@@ -91,8 +91,9 @@ void loop(){
 	if(Serial.available()>0){
 		do{
 			uint8_t x=Serial.read();
-			if(x&0x40){//nunchaku
-
+			if(x&0x40){//nunchuk
+					uint8_t p=x&7;
+					nunchuk=(nunchuk&(~(1<<p)))|(((x>>4)&1)<<p);
 			}else{//ctl
 				if(x&0x20){//st
 					if(x&0x10)st_raw=(st_raw&0xf)|((x&0xf)<<4);
