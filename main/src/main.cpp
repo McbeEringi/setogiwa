@@ -14,12 +14,16 @@ const uint8_t
 AsyncWebServer svr(80);
 AsyncWebSocket ws("/ws");
 float
-	srv[5]={0},
+	srv[5]={
+		.3,.9,// main(.18 .3 .9) sub(1. .9 .22)  (下 待機 上)
+		.65,// x2y(デフォ.65 開.1)
+		.5,.5// pos(奥 .2 .5 1 手前) lr(.7←→.2)
+	},
 	robomas[2]={0},
 	belt[3]={0},
-	fan[6]={0};
+	fan[6]={0};// fan .6
 
-uint8_t st_raw=0x33,nunchuk;
+uint8_t st_raw=0x33,nunchuk=0;
 uint16_t btn=0;
 float st_x=0,st_y=0;
 uint32_t t=0;
@@ -65,12 +69,13 @@ void onWS(AsyncWebSocket *ws,AsyncWebSocketClient *client,AwsEventType type,void
 }
 
 void setup(){
+	neopixelWrite(0,32,32,32);
 	Serial.begin(9600,SERIAL_8E1);
 	can_init(CAN_TX,CAN_RX);
 	RM_X.setup();//RM_X.reset_location();
 	RM_Y.setup();//RM_Y.reset_location();
 	LittleFS.begin();
-	for(uint8_t i=0;i<5;i++){servo_init(i,srv_pin[i]);srv[i]=.5;}
+	for(uint8_t i=0;i<5;i++)servo_init(i,srv_pin[i]);//srv[i]=.5;
 	flush();
 	delay(1000);
 	// WiFi.begin("F660A-WKEE-G","dFA4ewgf");
@@ -101,8 +106,8 @@ void loop(){
 					int8_t
 						r0=(st_raw&0xf)-3,
 						r1=(st_raw>>4)-3;
-					st_x=(r0-r1)/6.;
-					st_y=(r0+r1)/6.;
+					st_x=sign(r0-r1)*fabs(pow((r0-r1)/6.,2.));
+					st_y=sign(r0+r1)*fabs(pow((r0+r1)/6.,2.));
 				}else{//btn
 					uint8_t p=x&0xf;
 					btn=(btn&(~(1<<p)))|(((x>>4)&1)<<p);
@@ -111,7 +116,7 @@ void loop(){
 		}while(Serial.available()>0);
 		wslog();
 	}
-	robomas[1]+=st_x*-.05;
+	robomas[1]+=st_x*-.03;
 	robomas[0]+=st_y*-.01;
 	flush();
 }
