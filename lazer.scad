@@ -14,7 +14,7 @@ rotate([0,-90,0])translate([3,0,0])union(){
 			translate([0,10,-1])cube([6,1,3]);
 		}
 		difference(){
-			translate([-3,-1.5,0])cube([4,5,10]);
+			translate([-3,-1.5,0])cube([4,6,10]);
 			translate([-1,0,6])sphere(d=5.5);
 		}
 	}
