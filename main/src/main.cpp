@@ -8,6 +8,7 @@
 #define NAME "setogiwa"
 #define CAN_TX 3
 #define CAN_RX 2
+//#define DEBUG
 
 #define BTNDOWN(X) (btn&X)&&!(btn_p&X)
 #define NUNDOWN(X) (nunchuk&X)&&!(nunchuk_p&X)
@@ -70,29 +71,30 @@ void flush(){
 	for(uint8_t i=0;i<3;i++)Serial.write(     (i<<5)|((uint8_t)((belt[i]*.5+.5)*31+1)));
 	for(uint8_t i=0;i<6;i++)Serial.write(0x80|(i<<4)|((uint8_t)(fan[i]*15.)));
 }
-// void wslog(){
-// 	ws.printfAll(
-// 		"{\n\tbtn:0x%03x,st:[%f,%f],raw:0x%02x,nun:%02x,\n\tservo:[%f,%f,%f,%f,%f],\n\trobomas:[%f,%f],belt:[%f,%f,%f],\n\tfan:[%f,%f,%f,%f,%f,%f],\n\thand_t0:[%d,%d]\n}",
-// 		btn,st_x,st_y,st_raw,nunchuk,
-// 		srv[0],srv[1],srv[2],srv[3],srv[4],
-// 		robomas[0],robomas[1],belt[0],belt[1],belt[2],
-// 		fan[0],fan[1],fan[2],fan[3],fan[4],fan[5],
-// 		hand_t0[0],hand_t0[1]
-// 	);
-// }
-
-// void onWS(AsyncWebSocket *ws,AsyncWebSocketClient *client,AwsEventType type,void *arg,uint8_t *data,size_t len){
-// 	if(type==WS_EVT_DATA){
-// 		AwsFrameInfo *info=(AwsFrameInfo*)arg;
-// 		if(info->final&&info->index==0&&info->len==len){
-// 			// for(uint8_t i=0;i<5;i++)srv[i]=*(float*)(data+(i<<2));
-// 			// for(uint8_t i=0;i<2;i++)robomas[i]=*(float*)(data+((i+5)<<2));
-// 			// for(uint8_t i=0;i<3;i++)belt[i]=*(float*)(data+((i+5)<<2));
-// 			// for(uint8_t i=0;i<6;i++)fan[i]=*(float*)(data+((i+5+3)<<2));
-// 			flush();wslog();
-// 		}
-// 	}
-// }
+#ifdef DEBUG
+void wslog(){
+	ws.printfAll(
+		"{\n\tbtn:0x%03x,st:[%f,%f],raw:0x%02x,nun:%02x,\n\tservo:[%f,%f,%f,%f,%f],\n\trobomas:[%f,%f],belt:[%f,%f,%f],\n\tfan:[%f,%f,%f,%f,%f,%f],\n\thand_t0:[%d,%d]\n}",
+		btn,st_x,st_y,st_raw,nunchuk,
+		srv[0],srv[1],srv[2],srv[3],srv[4],
+		robomas[0],robomas[1],belt[0],belt[1],belt[2],
+		fan[0],fan[1],fan[2],fan[3],fan[4],fan[5],
+		hand_t0[0],hand_t0[1]
+	);
+}
+void onWS(AsyncWebSocket *ws,AsyncWebSocketClient *client,AwsEventType type,void *arg,uint8_t *data,size_t len){
+	if(type==WS_EVT_DATA){
+		AwsFrameInfo *info=(AwsFrameInfo*)arg;
+		if(info->final&&info->index==0&&info->len==len){
+			// for(uint8_t i=0;i<5;i++)srv[i]=*(float*)(data+(i<<2));
+			// for(uint8_t i=0;i<2;i++)robomas[i]=*(float*)(data+((i+5)<<2));
+			// for(uint8_t i=0;i<3;i++)belt[i]=*(float*)(data+((i+5)<<2));
+			// for(uint8_t i=0;i<6;i++)fan[i]=*(float*)(data+((i+5+3)<<2));
+			flush();wslog();
+		}
+	}
+}
+#endif
 
 void setup(){
 	neopixelWrite(0,32,32,32);
@@ -104,18 +106,21 @@ void setup(){
 	for(uint8_t i=0;i<5;i++)servo_init(i,srv_pin[i]);
 	srv[4]=shoot_lr[0];
 	delay(100);
-	// WiFi.begin("F660A-WKEE-G","dFA4ewgf");
-	// for(uint8_t i=0;WiFi.status()!=WL_CONNECTED;i++){
-	// 	servo(0,.52);delay(500);
-	// 	servo(0,.48);delay(500);
-	// }
-	// WiFi.softAP("setogiwa","setomono");
-	
-	// MDNS.begin(NAME);
-	// ws.onEvent(onWS);svr.addHandler(&ws);
-	// svr.onNotFound([](AsyncWebServerRequest *request){request->redirect("/");});
-	// svr.serveStatic("/",LittleFS,"/").setDefaultFile("index.html");
-	// svr.begin();
+	#ifdef DEBUG
+		delay(1000);
+		// WiFi.begin("F660A-WKEE-G","dFA4ewgf");
+		// for(uint8_t i=0;WiFi.status()!=WL_CONNECTED;i++){
+		// 	servo(0,.52);delay(500);
+		// 	servo(0,.48);delay(500);
+		// }
+		WiFi.softAP("setogiwa","setomono");
+		
+		MDNS.begin(NAME);
+		ws.onEvent(onWS);svr.addHandler(&ws);
+		svr.onNotFound([](AsyncWebServerRequest *request){request->redirect("/");});
+		svr.serveStatic("/",LittleFS,"/").setDefaultFile("index.html");
+		svr.begin();
+	#endif
 }
 void loop(){
 	// time ctl
@@ -143,13 +148,15 @@ void loop(){
 				}
 			}
 		}while(Serial.available()>0);
-		// wslog();
+		#ifdef DEBUG
+		wslog();
+		#endif
 	}
 
 	// robomas 
-	if(!(0.<robomas[0]&&st_y<0.)&&!(robomas[0]<-x_range&&0.<st_y))robomas[0]+=st_y*-.007*(btn&btn_spd?1.:.5);
-	if(!((blue_mode?y_range:0.)<robomas[1]&&st_x<0.)&&!(robomas[0]<(blue_mode?0.:-y_range)&&0.<st_x))robomas[1]+=st_x*-.03*(btn&btn_spd?1.:.5);
-	for(uint8_t i=0;i<2;i++)robomas_real[i]=robomas[i];//{if(hand_state)robomas_real[i]=robomas[i];else robomas_real[i]=mix(0,robomas_real[i],hand_state_x);}
+	if(hand_state&&!(0.<robomas[0]&&st_y<0.)&&!(robomas[0]<-x_range&&0.<st_y))robomas[0]+=st_y*-.007*(btn&btn_spd?1.:.5);
+	if(hand_state&&!((blue_mode?y_range:0.)<robomas[1]&&st_x<0.)&&!(robomas[1]<(blue_mode?0.:-y_range)&&0.<st_x))robomas[1]+=st_x*-.03*(btn&btn_spd?1.:.5);
+	for(uint8_t i=0;i<2;i++)robomas_real[i]=mix(0,robomas[i],smoothstep(0.,1.,hand_state_x));
 //
 	// hand
 	if(BTNDOWN(btn_hand_state))hand_state=!hand_state;hand_state_x+=ls(hand_state_x,hand_state)*.01;
@@ -169,7 +176,7 @@ void loop(){
 				smoothstep(.6,1.6,t)
 			),
 			hand_pos[i][1],
-			smoothstep(2.3,3.,t)
+			smoothstep(2.6,3.3,t)
 		),hand_state_x);
 
 		fan[i]=mix(0.,.6,fmin(smoothstep(0.,.1,t),step(t,1.7))*((btn&0x2)?0.:1.)*hand_state_x);
