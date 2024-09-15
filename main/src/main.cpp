@@ -17,7 +17,7 @@ const uint8_t
 	srv_pin[5]={4,5,6,7,8},
 	btn_hand[2]={0x80,0x40},
 	nun_shoot_pos[2]={0x8,0x2},
-	nun_shoot_lr[2]={0x4,0x1},
+	nun_shoot_lr=0x10,
 	nun_belt_all_dir=0x20,
 	nun_homerun=0x40,
 	btn_hand_state=0x10,//0x1,
@@ -46,7 +46,7 @@ const float
 	y_range=6.95;
 
 uint8_t st_raw=0x33,nunchuk=0,nunchuk_p=nunchuk,
-	shoot_pos_i=1,belt_all_dir=0,homerun=0,hand_state=0,blue_mode=0;
+	shoot_pos_i=1,shoot_lr_i=0,belt_all_dir=0,homerun=0,hand_state=0,blue_mode=0;
 uint16_t btn=0,btn_p=btn;
 float st_x=0,st_y=0,hand_state_x=hand_state;
 uint32_t loopt=0,hand_t0[2]={UINT32_MAX>>1,UINT32_MAX>>1};
@@ -189,7 +189,9 @@ void loop(){
 	if(NUNDOWN(nun_shoot_pos[1])&&(0<shoot_pos_i))shoot_pos_i--;
 	srv[3]=shoot_pos[shoot_pos_i];
 
-	for(uint8_t i=0;i<2;i++){if(NUNDOWN(nun_shoot_lr[i]))srv[4]=shoot_lr[i];}
+	if(NUNDOWN(nun_shoot_lr))shoot_lr_i=!shoot_lr_i;
+	srv[4]=shoot_lr[shoot_lr_i];
+
 
 	// belt
 	// if(NUNDOWN(nun_belt_all_dir))belt_all_dir=(belt_all_dir+1)&3;
