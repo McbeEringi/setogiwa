@@ -7,7 +7,91 @@
 	</head>
 	<body>
 		<style>:root{color:#fff;background-color:#222;font-family:monospace;}input{width:100%;}</style>
-		<fieldset id="fields">
+
+		<style>
+		body{text-align:center;}
+		#btns{
+			transition:.2s;
+			background-color:#8888;font-size:24px;
+			display:inline-grid;grid-template-columns:repeat(7,8ex);grid-template-rows:repeat(5,8ex);gap:1ex;
+			margin:2ex;padding:1ex;border-radius:2ex;
+		}
+		#btns.disabled{pointer-events:none;opacity:.5;}
+		#btns>button{font-size:inherit;color:inherit;text-align:inherit;appearance:none;background:#fff4;border:1ex solid #fff4;border-radius:2ex;touch-action:none;}
+		#btns>button.en{background-color:#6ca;}
+		</style>
+		<div id="btns" class="disabled">
+
+			<div></div><button>L</button><div></div><button>exp</button><div></div><button>R</button><div></div>
+			<div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+
+			<div   > </div   ><button>↑</button><div   > </div   > <div></div> <button>HR</button> <div></div> <button>↑ </button>
+			<button>←</button><div   > </div   ><button>→</button> <div></div> <button>bunt</button> <div></div> <button>←→</button>
+			<div   > </div   ><button>↓</button><div   > </div   > <div></div> <button>belt</button> <div></div> <button>↓ </button>
+		</div>
+
+		<script>
+			const
+			d={
+				L:4,
+				exp:6,
+				R:5,
+
+					'↑':1,
+				'←':2,'→':0,
+					'↓':3,
+
+				HR:7,
+				bunt:8,
+				belt:9,
+
+				'↑ ':10,
+				'←→':11,
+				'↓ ':12,
+			};
+			let
+				dir=[0,0],
+				n=0,
+				ws,
+				send=_=>console.log(n),
+				main=_=>ws=Object.assign(new WebSocket(`ws://${location.hostname}/ws`),{
+					binaryType:'arraybuffer',
+					onopen:e=>console.log(e,send=_=>ws.send(new Uint16Array([n])),btns.classList.remove('disabled')),
+					onclose:e=>console.log(e,send(n=0),send=_=>_,btns.classList.add('disabled'),setTimeout(main,2000)),
+					onmessage:e=>log.textContent=e.data
+				});
+
+
+
+			btns.querySelectorAll('button').forEach(w=>(
+				w.onpointerdown=e=>(
+					e.preventDefault(),
+					e.target.classList.add('en'),
+					n|=(1<<d[e.target.textContent]),
+					send()
+				),
+				w.onpointermove=e=>e.preventDefault(),
+				w.onpointerup=w.onpointercancel=e=>(
+					e.target.classList.remove('en'),
+					n&=~(1<<d[e.target.textContent]),
+					send()
+				)
+			));
+
+
+			
+			main();
+
+
+		</script>
+
+
+		
+		
+
+
+		
+		<!-- <fieldset id="fields">
 			<h1>setogiwa_ctrl</h1>
 			<div class="servo">
 				<h2>servo</h2>
@@ -55,6 +139,6 @@
 			belt.forEach(x=>Object.assign(x,{min:-1,max:1,step:.05,value:0}));
 			fan.forEach(x=>Object.assign(x,{min:0,max:1,step:.05,value:0}));
 			main();
-		</script>
+		</script> -->
 	</body>
 </html>

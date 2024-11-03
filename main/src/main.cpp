@@ -8,10 +8,14 @@
 #define NAME "setogiwa"
 #define CAN_TX 3
 #define CAN_RX 2
-//#define DEBUG
 
-#define BTNDOWN(X) (btn&X)&&!(btn_p&X)
-#define NUNDOWN(X) (nunchuk&X)&&!(nunchuk_p&X)
+#define BTNPRSD(X) (btn&X)
+#define NUNPRSD(X) (nunchuk&X)
+#define WCTLPRSD(X) (wctl&X)
+
+#define BTNDOWN(X) (BTNPRSD(X)&&!(btn_p&X))
+#define NUNDOWN(X) (NUNPRSD(X)&&!(nunchuk_p&X))
+#define WCTLDOWN(X) (WCTLPRSD(X)&&!(wctl_p&X))
 
 const uint8_t
 	srv_pin[5]={4,5,6,7,8},
@@ -22,8 +26,30 @@ const uint8_t
 	nun_homerun=0x40,
 	btn_hand_state=0x10,//0x1,
 	btn_spd=0x4,
+	btn_fandis=0x2,
 	btn_homerun=0x20;
 const uint16_t btn_blue_mode=0x100;////0x10;
+
+const uint16_t
+	wctl_dr=1<<0,
+	wctl_du=1<<1,
+	wctl_dl=1<<2,
+	wctl_dd=1<<3,
+
+	wctl_l=1<<4,
+	wctl_r=1<<5,
+	wctl_exp=1<<6,
+
+	wctl_hr=1<<7,
+	wctl_bunt=1<<8,
+	wctl_belt=1<<9,
+
+	wctl_nd=1<<10,
+	wctl_np=1<<11,
+	wctl_nu=1<<12;
+const uint16_t
+	wctl_hand[2]={wctl_l,wctl_r};
+
 
 AsyncWebServer svr(80);
 AsyncWebSocket ws("/ws");
@@ -47,7 +73,7 @@ const float
 
 uint8_t st_raw=0x33,nunchuk=0,nunchuk_p=nunchuk,
 	shoot_pos_i=1,shoot_lr_i=0,belt_all_dir=0,homerun=0,hand_state=0,blue_mode=0;
-uint16_t btn=0,btn_p=btn;
+uint16_t btn=0,btn_p=btn,wctl=0,wctl_p=wctl;
 float st_x=0,st_y=0,hand_state_x=hand_state;
 uint32_t loopt=0,hand_t0[2]={UINT32_MAX>>1,UINT32_MAX>>1};
 
@@ -71,30 +97,12 @@ void flush(){
 	for(uint8_t i=0;i<3;i++)Serial.write(     (i<<5)|((uint8_t)((belt[i]*.5+.5)*31+1)));
 	for(uint8_t i=0;i<6;i++)Serial.write(0x80|(i<<4)|((uint8_t)(fan[i]*15.)));
 }
-#ifdef DEBUG
-void wslog(){
-	ws.printfAll(
-		"{\n\tbtn:0x%03x,st:[%f,%f],raw:0x%02x,nun:%02x,\n\tservo:[%f,%f,%f,%f,%f],\n\trobomas:[%f,%f],belt:[%f,%f,%f],\n\tfan:[%f,%f,%f,%f,%f,%f],\n\thand_t0:[%d,%d]\n}",
-		btn,st_x,st_y,st_raw,nunchuk,
-		srv[0],srv[1],srv[2],srv[3],srv[4],
-		robomas[0],robomas[1],belt[0],belt[1],belt[2],
-		fan[0],fan[1],fan[2],fan[3],fan[4],fan[5],
-		hand_t0[0],hand_t0[1]
-	);
-}
 void onWS(AsyncWebSocket *ws,AsyncWebSocketClient *client,AwsEventType type,void *arg,uint8_t *data,size_t len){
 	if(type==WS_EVT_DATA){
 		AwsFrameInfo *info=(AwsFrameInfo*)arg;
-		if(info->final&&info->index==0&&info->len==len){
-			// for(uint8_t i=0;i<5;i++)srv[i]=*(float*)(data+(i<<2));
-			// for(uint8_t i=0;i<2;i++)robomas[i]=*(float*)(data+((i+5)<<2));
-			// for(uint8_t i=0;i<3;i++)belt[i]=*(float*)(data+((i+5)<<2));
-			// for(uint8_t i=0;i<6;i++)fan[i]=*(float*)(data+((i+5+3)<<2));
-			flush();wslog();
-		}
+		if(info->final&&info->index==0&&info->len==len)wctl=*(uint16_t*)(data);
 	}
 }
-#endif
 
 void setup(){
 	neopixelWrite(0,32,32,32);
@@ -105,22 +113,20 @@ void setup(){
 	LittleFS.begin();
 	for(uint8_t i=0;i<5;i++)servo_init(i,srv_pin[i]);
 	srv[4]=shoot_lr[0];
-	delay(100);
-	#ifdef DEBUG
-		delay(1000);
-		// WiFi.begin("F660A-WKEE-G","dFA4ewgf");
-		// for(uint8_t i=0;WiFi.status()!=WL_CONNECTED;i++){
-		// 	servo(0,.52);delay(500);
-		// 	servo(0,.48);delay(500);
-		// }
-		WiFi.softAP("setogiwa","setomono");
-		
-		MDNS.begin(NAME);
-		ws.onEvent(onWS);svr.addHandler(&ws);
-		svr.onNotFound([](AsyncWebServerRequest *request){request->redirect("/");});
-		svr.serveStatic("/",LittleFS,"/").setDefaultFile("index.html");
-		svr.begin();
-	#endif
+	delay(1000);
+	// WiFi.begin("F660A-WKEE-G","dFA4ewgf");
+	// for(uint8_t i=0;WiFi.status()!=WL_CONNECTED;i++){
+	// 	servo(0,.52);delay(500);
+	// 	servo(0,.48);delay(500);
+	// }
+	WiFi.softAP("setogiwa","setomono");
+	
+	MDNS.begin(NAME);
+	ws.onEvent(onWS);svr.addHandler(&ws);
+	svr.onNotFound([](AsyncWebServerRequest *request){request->redirect("/");});
+	svr.serveStatic("/",LittleFS,"/").setDefaultFile("index.html");
+	svr.begin();
+	if(blue_mode)neopixelWrite(0,0,0,16);else neopixelWrite(0,16,0,0);
 }
 void loop(){
 	// time ctl
@@ -148,23 +154,24 @@ void loop(){
 				}
 			}
 		}while(Serial.available()>0);
-		#ifdef DEBUG
-		wslog();
-		#endif
 	}
 
+	// TODO
+	st_x=(WCTLPRSD(wctl_dl)?-1.:0.)+(WCTLPRSD(wctl_dr)?1.:0.);
+	st_y=(WCTLPRSD(wctl_dd)?-1.:0.)+(WCTLPRSD(wctl_du)?1.:0.);
+
 	// robomas 
-	if(hand_state&&!(0.<robomas[0]&&st_y<0.)&&!(robomas[0]<-x_range&&0.<st_y))robomas[0]+=st_y*-.007*(btn&btn_spd?1.:.5);
-	if(hand_state&&!((blue_mode?y_range:0.)<robomas[1]&&st_x<0.)&&!(robomas[1]<(blue_mode?0.:-y_range)&&0.<st_x))robomas[1]+=st_x*-.03*(btn&btn_spd?1.:.5);
+	if(hand_state&&!(0.<robomas[0]&&st_y<0.)&&!(robomas[0]<-x_range&&0.<st_y))robomas[0]+=st_y*-.007*(BTNPRSD(btn_spd)?1.:.5);
+	if(hand_state&&!((blue_mode?y_range:0.)<robomas[1]&&st_x<0.)&&!(robomas[1]<(blue_mode?0.:-y_range)&&0.<st_x))robomas[1]+=st_x*-.03*(BTNPRSD(btn_spd)?1.:.5);
 	for(uint8_t i=0;i<2;i++)robomas_real[i]=mix(0,robomas[i],smoothstep(0.,1.,hand_state_x));
-//
+
 	// hand
-	if(BTNDOWN(btn_hand_state))hand_state=!hand_state;hand_state_x+=ls(hand_state_x,hand_state)*.01;
+	if(BTNDOWN(btn_hand_state)||WCTLDOWN(wctl_exp))hand_state=!hand_state;hand_state_x+=ls(hand_state_x,hand_state)*.01;
 	// float xbelt_tmp=0;
 	for(uint8_t i=0;i<2;i++){
-		if(BTNDOWN(btn_hand[i]))hand_t0[i]=millis();
+		if(BTNDOWN(btn_hand[i])||WCTLDOWN(wctl_hand[i]))hand_t0[i]=millis();
 		float t=(millis()-hand_t0[i])*.001;
-		if((btn&btn_hand[i])&&(.9<=t)){t=.9;hand_t0[i]=millis()-t*1000;}
+		if((BTNPRSD(btn_hand[i])|WCTLPRSD(wctl_hand[i]))&&(.9<=t)){t=.9;hand_t0[i]=millis()-t*1000;}
 		srv[i]=mix(hand_pos[i][2],mix(
 			mix(
 				mix(
@@ -179,37 +186,39 @@ void loop(){
 			smoothstep(2.6,3.3,t)
 		),hand_state_x);
 
-		fan[i]=mix(0.,.6,fmin(smoothstep(0.,.1,t),step(t,1.7))*((btn&0x2)?0.:1.)*hand_state_x);
+		fan[i]=mix(0.,.6,fmin(smoothstep(0.,.1,t),step(t,1.7))*((BTNPRSD(btn_fandis))?0.:1.)*hand_state_x);
 		// xbelt_tmp=fmax(xbelt_tmp,fmin(smoothstep(1.,1.2,t),smoothstep(2.7,2.5,t))*hand_state_x);
 	}
 	belt[0]=.6*hand_state_x;//mix(0.,.6,xbelt_tmp);
 
 	// shoot
-	if(NUNDOWN(nun_shoot_pos[0])&&(shoot_pos_i<2))shoot_pos_i++;
-	if(NUNDOWN(nun_shoot_pos[1])&&(0<shoot_pos_i))shoot_pos_i--;
+	if((NUNDOWN(nun_shoot_pos[0])||WCTLDOWN(wctl_nu))&&(shoot_pos_i<2))shoot_pos_i++;
+	if((NUNDOWN(nun_shoot_pos[1])||WCTLDOWN(wctl_nd))&&(0<shoot_pos_i))shoot_pos_i--;
 	srv[3]=shoot_pos[shoot_pos_i];
 
-	if(NUNDOWN(nun_shoot_lr))shoot_lr_i=!shoot_lr_i;
+	if((NUNDOWN(nun_shoot_lr)||WCTLDOWN(wctl_np)))shoot_lr_i=!shoot_lr_i;
 	srv[4]=shoot_lr[shoot_lr_i];
 
 
 	// belt
 	// if(NUNDOWN(nun_belt_all_dir))belt_all_dir=(belt_all_dir+1)&3;
 	// for(uint8_t i=0;i<3;i++)belt[i]=belt_all_dir&1?belt_all_dir&2?-.6:.6:0.;
-	for(uint8_t i=1;i<3;i++)belt[i]=(nunchuk&nun_belt_all_dir?-.6:.6)*hand_state_x*(blue_mode&&i==1?-1.:1.);
+	for(uint8_t i=1;i<3;i++)belt[i]=((NUNPRSD(nun_belt_all_dir)|WCTLPRSD(wctl_belt))?-.6:.6)*hand_state_x*(blue_mode&&i==1?-1.:1.);
 
 	// homerun
 	//if(BTNDOWN(btn_homerun))homerun=!homerun;
-	srv[2]=homerun_pos[(btn&btn_homerun?1:0)]+(nunchuk&nun_homerun?.05:0.);
+	srv[2]=homerun_pos[((BTNPRSD(btn_homerun)|WCTLPRSD(wctl_hr))?1:0)]+((NUNPRSD(nun_homerun)|WCTLPRSD(wctl_bunt))?.05:0.);
 
 	// blue mode
-	if(BTNDOWN(btn_blue_mode))blue_mode=!blue_mode;
-	if(blue_mode)neopixelWrite(0,0,0,16);else neopixelWrite(0,16,0,0);
-
+	if(BTNDOWN(btn_blue_mode)){
+		blue_mode=!blue_mode;
+		if(blue_mode)neopixelWrite(0,0,0,16);else neopixelWrite(0,16,0,0);
+	}
 	
 	flush();
 	nunchuk_p=nunchuk;
 	btn_p=btn;
+	wctl_p=wctl;
 }
 
 
